@@ -248,12 +248,22 @@ class ourAttackerAgent(GeneralAgent):
             if i.get_position() != None and not i.is_pacman and game_state.get_agent_state(self.index).is_pacman and i.scared_timer < 5: # (for the offensive, the defensive should be aggresive towards pacman)
                 current_ghost_pos = i.get_position()
                 if self.get_maze_distance(my_pos, current_ghost_pos) < self.get_maze_distance(self.get_position(game_state), current_ghost_pos) or self.are_there_walls(game_state, my_pos, current_ghost_pos) > 3:
-                    features['run_from_ghost'] = -100
+                    features['run_from_ghost'] = -self.get_maze_distance(my_pos, current_ghost_pos)
                 elif self.get_maze_distance(my_pos, current_ghost_pos) > self.get_maze_distance(self.get_position(game_state), current_ghost_pos) and not self.is_wall_between(game_state, my_pos, current_ghost_pos):
-                    features['run_from_ghost'] = 100
+                    features['run_from_ghost'] = self.get_maze_distance(my_pos, current_ghost_pos)
                     
-                    if len(successor.get_legal_actions(self.index)) < 3:
-                        features['no_way_out'] = -1
+                if len(successor.get_legal_actions(self.index)) < 3:
+                    end_found = False
+                    iterator = 0
+                    it_successor = successor
+                    while not end_found and iterator < 6:
+                        for action in it_successor.get_legal_actions(self.index):
+                            new_successor = self.get_successor(successor, action)
+                            if len(new_successor.get_legal_actions(self.index)) == 1:
+                                features['no_way_out'] = -1
+                                end_found = True
+                        it_successor = new_successor
+                        iterator +=  1
             
             elif i.get_position() != None and i.scared_timer > 10:         # Attack ghost!
                 current_ghost_pos = i.get_position()
@@ -276,7 +286,7 @@ class ourAttackerAgent(GeneralAgent):
         return features
 
     def get_weights(self, game_state, action):
-        return {'successor_score': 100, 'no_way_out': 100000000, 'run_from_ghost': 10, 'distance_to_food': -1, 'secure_food': -1000, 'attack_ghost': 100000, 'go_for_capsule': 10000}
+        return {'successor_score': 100, 'no_way_out': 100000000000, 'run_from_ghost': 10000000, 'distance_to_food': -1, 'secure_food': -1000, 'attack_ghost': 100000, 'go_for_capsule': 10000}
 
 
 
@@ -314,19 +324,18 @@ class ourDefensiveAgent(GeneralAgent):
       
       for i in [game_state.get_agent_state(i) for i in self.get_opponents(game_state)]:
             
-          if i.get_position() != None and i.is_pacman and not successor.get_agent_state(self.index),is_pacman:
+          if i.get_position() != None and i.is_pacman and not successor.get_agent_state(self.index).is_pacman:
             current_pac_pos = i.get_position()
             if self.get_maze_distance(successor_pos, current_pac_pos) < self.get_maze_distance(self.get_position(game_state), current_pac_pos) and not successor.get_agent_state(self.index).scared_timer > 3:
-                features['attack_pacman'] = 10000
-            elif self.get_maze_distance(successor_pos, current_pac_pos) > self.get_maze_distance(self.get_position(game_state), current_pac_pos):
-                features['attack_pacman'] = -1000
+                features['attack_pacman'] = self.get_maze_distance(successor_pos, current_pac_pos)
+            elif self.get_maze_distance(successor_pos, current_pac_pos) > self.get_maze_distance(self.get_position(game_state), current_pac_pos) and not successor.get_agent_state(self.index).scared_timer > 3:
+                features['attack_pacman'] = -self.get_maze_distance(successor_pos, current_pac_pos)
             elif successor.get_agent_state(self.index).scared_timer > 3 and self.get_maze_distance(successor_pos, current_pac_pos) > self.get_maze_distance(self.get_position(game_state), current_pac_pos):
-                features['attack_pacman'] = 10000
-                
-      
+                features['attack_pacman'] = self.get_maze_distance(successor_pos, current_pac_pos)
+          
       return features
 
   def get_weights(self, game_state, action):
-      return {'num_invaders': -1000, 'on_defense': 100, 'invader_distance': -10, 'stop': -100, 'reverse': -2, 'attack_pacman': 1000}
+      return {'num_invaders': -1000, 'on_defense': 100, 'invader_distance': -10, 'stop': -100, 'reverse': -2, 'attack_pacman': 100000}
 
 
